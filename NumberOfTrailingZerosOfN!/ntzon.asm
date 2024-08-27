@@ -43,7 +43,7 @@ is_num:  ; args: (char* n, size_t len)
 
 main:  ; args: (int argc, char** argv)
   mov rbp, rsp
-  sub rsp,24  ; stack alignment (required by printf) 
+  sub rsp,24  ; stack alignment (required by amd64 sysv ABI) 
 
   cmp rdi,2
   jne _exit_error

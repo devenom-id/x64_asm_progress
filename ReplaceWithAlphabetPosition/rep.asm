@@ -72,22 +72,23 @@ itoa:
 zerobuff:
   ; (char* s, int size) -> (void)
   ; rsi
-  mov byte [rbp+10+rsi], 0
+  dec rsi
+  mov byte [rdi+rsi], 0
   cmp rsi, 0
   jne zerobuff
   ret
 
 alph_1:
-  mov rax, [rbp]
-  mov r8b, byte [rax]
-  mov r10,0
-  mov r11,0
+  xor r8,r8
+  mov r8b, byte [rdi]
+  mov r10, 0
+  mov r11, 0
   cmp r8b, 65
   cmovge r10, r9
   cmp r8b, 90
   cmovle r11, r9
   and r10, r11
-  jnz alph_2
+  jz alph_2
   add r8b, 32
 alph_2:
   mov r10, 0
@@ -97,11 +98,29 @@ alph_2:
   cmp r8b, 122
   cmovle r11, r9
   and r10, r11
-  jnz alph_3
+  jz alph_3
   sub r8b, 96
-  ;; CONTINUE HERE!! on:  prt=strcpy(ptr, itoa(ch));
+
+  mov rbx, rdi  ; Stack is a mess, so I'll be storing it on a preserved register instead.
+  mov r12, rsi
+  mov r13, rsp
+  mov rdi, 0
+  mov dil, r8b
+  mov r10, rcx
+  call itoa
+  mov rdi, [rbp]
+  mov rsi, rax
+  call stpcpy
+  mov rdi, rbx
+  mov rsi, r12
+  mov rsp, r13
+  mov rcx, r10
+  mov byte [rax], 32
+  inc rax
+  mov [rbp], rax
 alph_3:
   inc rcx
+  inc rdi
 alph_x:
   cmp rcx, rsi
   jl alph_1
@@ -111,6 +130,7 @@ alph:
   ; rsi,rcx,r8,r9,r10,r11
   ; saving register
   push rbp
+  push rdi
 
   ; length of s
   mov rax,0
@@ -124,13 +144,15 @@ alph:
   sub rsp, rax ; buffer
   sub rsp, 10  ; char* ptr; int size;
 
-  ; reorder stack (rbp,rsp,main,size,ptr,buffer)
+  ; reorder stack (rdi,rbp,main,size,ptr,buffer)
   mov rcx, qword [rsp+rax+10]
   mov qword [rsp], rcx
   mov rcx, qword [rsp+rax+10+8]
   mov qword [rsp+8], rcx
+  mov rcx, qword [rsp+rax+10+16]
+  mov qword [rsp+16], rcx
   mov rbp, rsp
-  add rbp, 16
+  add rbp, 24
 
   ; assign strlen to size
   mov word [rbp], si
@@ -147,7 +169,7 @@ alph:
   ; zero the buffer
   push rdi
   mov rdi, [rbp]
-  inc rsi
+  mov rsi,rax
   call zerobuff
   pop rdi
   mov si, word [rbp-2]  ; recover rsi
@@ -158,25 +180,25 @@ alph:
   mov r9, 1
   call alph_x
 
+  add rbp, 8
+  mov rax, rbp
   ; restoring registers
+  pop rdi
   pop rbp
+  ret
 
 main:
   ; aligning stack
   mov rbp,rsp
   sub rsp,24
 
-  mov rdi, 334
-  call itoa
+  mov rdi, msg
+  call alph
+
   mov rdi, fmt
   mov rsi, rax
   mov rax, 0
   call printf
-  jmp _exit
-
-  ; calling alph
-  mov rdi, msg
-  call alph
 
 _exit:
   mov rax,60
@@ -186,5 +208,3 @@ _exit:
 section .data
   fmt db "%s",10,0
   msg db "Hello world",10,0
-  tst db "%d",10,0
-
